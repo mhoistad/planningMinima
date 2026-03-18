@@ -336,10 +336,11 @@ expandAirports();
 // TAF fetch & parsing
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchTaf(icao) {
-  const direct = `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`;
-  const proxy  = `https://corsproxy.io/?${encodeURIComponent(direct)}`;
+  const direct    = `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`;
+  const proxy1    = `https://corsproxy.io/?${direct}`;
+  const proxy2    = `https://api.allorigins.win/raw?url=${encodeURIComponent(direct)}`;
 
-  for (const url of [direct, proxy]) {
+  for (const url of [direct, proxy1, proxy2]) {
     try {
       const resp = await fetch(url);
       if (!resp.ok) continue;
@@ -347,7 +348,7 @@ async function fetchTaf(icao) {
       if (data && data.length > 0) return data[0];
     } catch { /* try next */ }
   }
-  throw new Error(`No TAF found for ${icao} (tried direct + CORS proxy)`);
+  throw new Error(`No TAF found for ${icao}`);
 }
 
 function smToM(vis) {
