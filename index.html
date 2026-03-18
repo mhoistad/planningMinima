@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planning Minima</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    header h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #58a6ff;
+    }
+    header p {
+      font-size: 0.78rem;
+      color: #8b949e;
+      margin-top: 4px;
+    }
+
+    .container { max-width: 680px; margin: 0 auto; }
+
+    /* Input */
+    .input-row { display: flex; gap: 10px; margin-bottom: 24px; }
+    input[type="text"] {
+      flex: 1;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      color: #e6edf3;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      padding: 14px 18px;
+      text-transform: uppercase;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]::placeholder { color: #484f58; font-weight: 400; letter-spacing: 0.05em; font-size: 1rem; }
+    input[type="text"]:focus { border-color: #58a6ff; }
+    button#checkBtn {
+      background: #238636;
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 14px 24px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    button#checkBtn:hover  { background: #2ea043; }
+    button#checkBtn:active { background: #1a7f37; }
+    button#checkBtn:disabled { background: #21262d; color: #484f58; cursor: default; }
+
+    /* TAF box */
+    .taf-box {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.78rem;
+      color: #8b949e;
+      line-height: 1.7;
+      word-break: break-word;
+    }
+    .taf-box .taf-label { color: #58a6ff; font-weight: 700; margin-right: 6px; }
+    .taf-box .taf-valid { margin-top: 6px; font-size: 0.72rem; color: #484f58; }
+
+    /* Wind section */
+    .wind-section {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .wind-section .section-header {
+      padding: 11px 16px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #8b949e;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #21262d;
+    }
+    .wind-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid #21262d;
+      font-size: 0.88rem;
+      gap: 12px;
+    }
+    .wind-row:last-child { border-bottom: none; }
+    .wind-row .rwy-id { font-family: "SF Mono", monospace; font-weight: 700; font-size: 0.92rem; min-width: 48px; }
+    .wind-row .rwy-status { color: #8b949e; flex: 1; }
+    .wind-row .rwy-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .rwy-badge.ok       { background: #0d2818; color: #3fb950; border: 1px solid #238636; }
+    .rwy-badge.tailwind { background: #2d2300; color: #d29922; border: 1px solid #d29922; }
+    .rwy-badge.excluded { background: #2d1117; color: #f85149; border: 1px solid #f85149; }
+
+    /* Check cards */
+    .card {
+      border-radius: 12px;
+      border: 1px solid #30363d;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 18px;
+      gap: 12px;
+    }
+    .card-header .card-title { font-weight: 600; font-size: 0.95rem; }
+    .card-header .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 4px 12px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .card.suitable   .card-header { background: #0d2818; border-bottom: 1px solid #238636; }
+    .card.unsuitable .card-header { background: #2d1117; border-bottom: 1px solid #f85149; }
+    .card.suitable   .card-title  { color: #3fb950; }
+    .card.unsuitable .card-title  { color: #f85149; }
+    .card.suitable   .badge       { background: #238636; color: #fff; }
+    .card.unsuitable .badge       { background: #f85149; color: #fff; }
+
+    .card-body { background: #161b22; padding: 4px 0; }
+
+    .check-note {
+      padding: 10px 18px 4px;
+      font-size: 0.78rem;
+      color: #484f58;
+      font-family: "SF Mono", monospace;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      padding: 9px 18px;
+      border-bottom: 1px solid #21262d;
+      font-size: 0.88rem;
+      gap: 8px;
+    }
+    .check-row:last-of-type { border-bottom: none; }
+    .check-row .lbl  { color: #8b949e; width: 72px; flex-shrink: 0; }
+    .check-row .actual {
+      font-family: "SF Mono", monospace;
+      font-weight: 600;
+      font-size: 0.88rem;
+      min-width: 90px;
+    }
+    .check-row .required { color: #484f58; font-size: 0.8rem; flex: 1; }
+    .check-row .sym { font-size: 1rem; width: 20px; text-align: right; }
+    .sym.ok   { color: #3fb950; }
+    .sym.fail { color: #f85149; }
+
+    .check-warning {
+      padding: 8px 18px 10px;
+      font-size: 0.78rem;
+      color: #d29922;
+    }
+    .check-info {
+      padding: 8px 18px 10px;
+      font-size: 0.78rem;
+      color: #484f58;
+    }
+
+    /* Status / error */
+    .status {
+      text-align: center;
+      color: #8b949e;
+      font-size: 0.9rem;
+      padding: 32px 0;
+    }
+    .error-box {
+      background: #2d1117;
+      border: 1px solid #f85149;
+      border-radius: 10px;
+      color: #f85149;
+      font-size: 0.88rem;
+      padding: 14px 18px;
+    }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>PLANNING MINIMA</h1>
+    <p>ETOPS · Destination · Takeoff alternate · Destination alternate</p>
+  </header>
+
+  <div class="input-row">
+    <input type="text" id="icaoInput" placeholder="ICAO" maxlength="4"
+           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+    <button id="checkBtn" onclick="runCheck()">Check</button>
+  </div>
+
+  <div id="output"></div>
+
+</div>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Category presets
+// ─────────────────────────────────────────────────────────────────────────────
+const CATS = {
+  cat3dual:   { approach_type: "ILS", ils_cat: 3, dh_ft: 0,   vis_m: 75,  xwind_kt: 20 },
+  cat3single: { approach_type: "ILS", ils_cat: 3, dh_ft: 50,  vis_m: 175, xwind_kt: 20 },
+  cat2:       { approach_type: "ILS", ils_cat: 2, dh_ft: 100, vis_m: 300, xwind_kt: 20 },
+  cat1:       { approach_type: "ILS", ils_cat: 1, dh_ft: 200, vis_m: 550, xwind_kt: 40 },
+};
+
+const XWIND_LIMIT_DEFAULT_KT  = 40;
+const XWIND_LIMIT_CAT23_KT    = 20;
+const XWIND_LIMIT_CAT23_US_KT = 15;
+const TAILWIND_LIMIT_KT       = 15;
+const ETOPS_FLOOR_CEIL_FT     = CATS.cat3single.dh_ft;
+const ETOPS_FLOOR_VIS_M       = CATS.cat3single.vis_m;
+const TAKEOFF_ALT_FLOOR_CEIL_FT = CATS.cat3single.dh_ft;
+const TAKEOFF_ALT_FLOOR_VIS_M   = CATS.cat3single.vis_m;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Airport database
+// ─────────────────────────────────────────────────────────────────────────────
+const AIRPORTS = {
+  EGLL: {
+    name: "London Heathrow",
+    runways: {
+      "09L": { cat: "cat1", heading: 91  },
+      "27R": { cat: "cat1", heading: 271 },
+    },
+    etops: { cat: "cat1" },
+  },
+  ENGM: {
+    name: "Oslo Gardermoen",
+    runways: {
+      "01L": { cat: "cat3dual", heading: 12  },
+      "01R": { cat: "cat3dual", heading: 12  },
+      "19L": { cat: "cat3dual", heading: 192 },
+      "19R": { cat: "cat3dual", heading: 192 },
+    },
+    etops:       { cat: "cat3single" },
+    destination: { cat: "cat3dual"   },
+    takeoff:     { cat: "cat3single" },
+  },
+  CYYR: {
+    name: "Goose Bay",
+    runways: {
+      "08": { cat: "cat3dual", heading: 80  },
+      "26": { cat: "cat3dual", heading: 260 },
+      "16": { cat: "cat1",     heading: 160 },
+      "34": { cat: "cat1",     heading: 340 },
+    },
+    etops: { cat: "cat3single" },
+  },
+  KJFK: {
+    name: "New York JFK",
+    region: "US",
+    runways: {
+      "04L": { cat: "cat2", heading: 42  },
+      "22R": { cat: "cat2", heading: 222 },
+      "13L": { cat: "cat1", heading: 131 },
+      "31R": { cat: "cat1", heading: 311 },
+    },
+  },
+};
+
+// Expand all cat shorthands at startup
+function expandAirports() {
+  for (const airport of Object.values(AIRPORTS)) {
+    const us = airport.region === "US";
+    for (const key of ["etops", "destination", "takeoff"]) {
+      if (airport[key] && airport[key].cat) {
+        const p = CATS[airport[key].cat];
+        airport[key] = { approach_type: "PA", auth_dh_ft: p.dh_ft, auth_vis_m: p.vis_m };
+      }
+    }
+    if (airport.runways) {
+      for (const [id, data] of Object.entries(airport.runways)) {
+        if (data.cat) {
+          const p = CATS[data.cat];
+          const expanded = { ...p, heading: data.heading };
+          if (us && p.xwind_kt === XWIND_LIMIT_CAT23_KT)
+            expanded.xwind_kt = XWIND_LIMIT_CAT23_US_KT;
+          airport.runways[id] = expanded;
+        }
+      }
+    }
+  }
+}
+expandAirports();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TAF fetch & parsing
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchTaf(icao) {
+  const direct = `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`;
+  const proxy  = `https://corsproxy.io/?${encodeURIComponent(direct)}`;
+
+  for (const url of [direct, proxy]) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (data && data.length > 0) return data[0];
+    } catch { /* try next */ }
+  }
+  throw new Error(`No TAF found for ${icao} (tried direct + CORS proxy)`);
+}
+
+function smToM(vis) {
+  if (typeof vis === "string" && vis.endsWith("+")) return 9999;
+  return Math.round(parseFloat(vis) * 1609.34 / 50) * 50;
+}
+
+function parseTafPeriods(taf) {
+  return (taf.fcsts || []).map(fcst => {
+    let ceil_ft = null;
+    if (fcst.vertVis != null) ceil_ft = parseInt(fcst.vertVis);
+    for (const layer of (fcst.clouds || [])) {
+      if (["BKN","OVC","VV"].includes(layer.cover) && layer.base != null) {
+        const b = parseInt(layer.base);
+        if (ceil_ft === null || b < ceil_ft) ceil_ft = b;
+      }
+    }
+    const vis = fcst.visib;
+    return {
+      ceil_ft,
+      vis_m:       vis != null ? smToM(vis) : null,
+      change_type: fcst.fcstChange
+        ? (fcst.probability ? `${fcst.fcstChange}${fcst.probability}` : fcst.fcstChange)
+        : null,
+      wx:          fcst.wxString   || null,
+      wind_dir:    fcst.wdir != null ? parseInt(fcst.wdir) : null,
+      wind_spd:    fcst.wspd != null ? parseInt(fcst.wspd) : null,
+    };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Weather condition filtering
+// ─────────────────────────────────────────────────────────────────────────────
+function worstConditions(periods, { excludeTransientTempo = false, etopsMinima = null } = {}) {
+  const included = [], skipped = [];
+  for (const p of periods) {
+    if (excludeTransientTempo && p.change_type && p.change_type.includes("TEMPO") && p.wx &&
+        ["TS","SH","CB"].some(c => p.wx.includes(c))) {
+      skipped.push(`TEMPO ${p.wx}`);
+      continue;
+    }
+    if (etopsMinima && p.change_type &&
+        (p.change_type.startsWith("PROB") || p.change_type.includes("TEMPO"))) {
+      const [reqCeil, reqVis] = etopsMinima;
+      const ceilOk = p.ceil_ft === null || p.ceil_ft >= reqCeil;
+      const visOk  = p.vis_m   === null || p.vis_m   >= reqVis;
+      if (ceilOk && visOk) {
+        const label = p.change_type + (p.wx ? ` ${p.wx}` : "");
+        skipped.push(`${label} (above applicable landing minima)`);
+        continue;
+      }
+    }
+    included.push(p);
+  }
+  const ceils = included.map(p => p.ceil_ft).filter(v => v !== null);
+  const viss  = included.map(p => p.vis_m ).filter(v => v !== null);
+  return {
+    ceil:    ceils.length ? Math.min(...ceils) : null,
+    vis:     viss.length  ? Math.min(...viss)  : null,
+    skipped,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Runway helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function reciprocalRwy(rwy) {
+  const num    = parseInt(rwy.slice(0, 2));
+  const suffix = rwy.slice(2) || "";
+  const rNum   = (num + 18) % 36 || 36;
+  const rSfx   = ({ L:"R", R:"L", C:"C" })[suffix] ?? suffix;
+  return String(rNum).padStart(2, "0") + rSfx;
+}
+
+function physicalKey(rwy) {
+  return [rwy, reciprocalRwy(rwy)].sort().join("/");
+}
+
+function tailwindKt(windDir, windSpd, hdg) {
+  return -windSpd * Math.cos(Math.PI / 180 * (hdg - windDir));
+}
+
+function crosswindKt(windDir, windSpd, hdg) {
+  return Math.abs(windSpd * Math.sin(Math.PI / 180 * (hdg - windDir)));
+}
+
+function maxTailwind(periods, hdg) {
+  let worst = -999, worstWind = "";
+  for (const p of periods) {
+    if (p.wind_dir === null) continue;
+    const tw = tailwindKt(p.wind_dir, p.wind_spd, hdg);
+    if (tw > worst) {
+      worst     = tw;
+      worstWind = `${String(p.wind_dir).padStart(3,"0")}/${String(p.wind_spd).padStart(2,"0")}kt`;
+    }
+  }
+  return { worst, worstWind };
+}
+
+function maxCrosswind(periods, hdg) {
+  let worst = 0, worstWind = "";
+  for (const p of periods) {
+    if (p.wind_dir === null) continue;
+    const xw = crosswindKt(p.wind_dir, p.wind_spd, hdg);
+    if (xw > worst) {
+      worst     = xw;
+      worstWind = `${String(p.wind_dir).padStart(3,"0")}/${String(p.wind_spd).padStart(2,"0")}kt`;
+    }
+  }
+  return { worst, worstWind };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Destination alternate row selection — PANS-OPS Table 8.1.3.6.6(1)
+// Most convenient (lowest) row is selected per the PANS-OPS note.
+// ─────────────────────────────────────────────────────────────────────────────
+function bestPansOpsRow(runways) {
+  const physical = {};
+  for (const [rwy, data] of Object.entries(runways))
+    (physical[physicalKey(rwy)] ??= []).push(data);
+
+  const best = Object.values(physical).map(
+    arr => arr.reduce((a,b) => (a.dh_ft < b.dh_ft || (a.dh_ft===b.dh_ft && a.vis_m<=b.vis_m)) ? a : b)
+  );
+
+  const typeB   = best.filter(a => a.approach_type === "ILS" && a.dh_ft < 250);
+  const typeA   = best.filter(a => a.approach_type === "ILS" && a.dh_ft >= 250);
+  const npa     = best.filter(a => a.approach_type === "NPA");
+  const circ    = best.filter(a => a.approach_type === "CIRCLING");
+
+  const candidates = [];
+
+  if (typeB.length >= 2) {
+    const top2 = [...typeB].sort((a,b) => a.dh_ft - b.dh_ft || a.vis_m - b.vis_m).slice(0,2);
+    const dh = Math.max(...top2.map(a=>a.dh_ft)), vis = Math.max(...top2.map(a=>a.vis_m));
+    candidates.push({ req_ceil: dh+100, req_vis: vis+300,
+      note: `Row 1 (two Type B, separate runways): ${dh} + 100 ft, ${vis} + 300 m` });
+  }
+  if (typeB.length >= 1) {
+    const a = typeB.reduce((x,y) => (x.dh_ft<y.dh_ft || (x.dh_ft===y.dh_ft && x.vis_m<=y.vis_m)) ? x:y);
+    candidates.push({ req_ceil: a.dh_ft+150, req_vis: a.vis_m+450,
+      note: `Row 2 (one Type B): ${a.dh_ft} + 150 ft, ${a.vis_m} + 450 m` });
+  }
+  if (typeA.length >= 1) {
+    const a = typeA.reduce((x,y) => (x.dh_ft<y.dh_ft || (x.dh_ft===y.dh_ft && x.vis_m<=y.vis_m)) ? x:y);
+    candidates.push({ req_ceil: a.dh_ft+200, req_vis: a.vis_m+800,
+      note: `Row 3 (CAT I ILS): ${a.dh_ft} + 200 ft, ${a.vis_m} + 800 m` });
+  }
+  if (npa.length >= 2) {
+    const top2 = [...npa].sort((a,b) => a.dh_ft-b.dh_ft || a.vis_m-b.vis_m).slice(0,2);
+    const dh = Math.max(...top2.map(a=>a.dh_ft)), vis = Math.max(...top2.map(a=>a.vis_m));
+    candidates.push({ req_ceil: dh+200, req_vis: vis+1000,
+      note: `Row 4 (two NPA, separate nav aids): ${dh} + 200 ft, ${vis} + 1000 m` });
+  }
+  if (npa.length >= 1) {
+    const a = npa.reduce((x,y) => (x.dh_ft<y.dh_ft || (x.dh_ft===y.dh_ft && x.vis_m<=y.vis_m)) ? x:y);
+    candidates.push({ req_ceil: a.dh_ft+400, req_vis: a.vis_m+1500,
+      note: `Row 5 (one NPA): ${a.dh_ft} + 400 ft, ${a.vis_m} + 1500 m` });
+  }
+  if (circ.length >= 1) {
+    const a = circ.reduce((x,y) => (x.dh_ft<y.dh_ft || (x.dh_ft===y.dh_ft && x.vis_m<=y.vis_m)) ? x:y);
+    candidates.push({ req_ceil: a.dh_ft+400, req_vis: a.vis_m+1500,
+      note: `Row 6 (circling): ${a.dh_ft} + 400 ft, ${a.vis_m} + 1500 m` });
+  }
+
+  if (!candidates.length) return null;
+  return candidates.reduce((a,b) => (a.req_ceil < b.req_ceil || (a.req_ceil===b.req_ceil && a.req_vis<=b.req_vis)) ? a:b);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Destination alternate row selection — FAA OPS Specs (US)
+// ─────────────────────────────────────────────────────────────────────────────
+function bestUsRow(runways) {
+  const physical = {};
+  for (const [rwy, data] of Object.entries(runways))
+    (physical[physicalKey(rwy)] ??= []).push(data);
+
+  const best = Object.values(physical).map(
+    arr => arr.reduce((a,b) => (a.dh_ft < b.dh_ft || (a.dh_ft===b.dh_ft && a.vis_m<=b.vis_m)) ? a : b)
+  );
+
+  if (best.some(a => a.ils_cat === 3))
+    return { req_ceil: 200, req_vis: 550,  note: "CAT III ILS (fixed): 200 ft / 550 m" };
+  if (best.some(a => a.ils_cat === 2))
+    return { req_ceil: 300, req_vis: 1200, note: "CAT II ILS (fixed): 300 ft / 1200 m" };
+
+  const appr = best.filter(a => ["ILS","NPA","CIRCLING"].includes(a.approach_type));
+  if (appr.length >= 2) {
+    const top2 = [...appr].sort((a,b) => b.dh_ft-a.dh_ft || b.vis_m-a.vis_m).slice(0,2);
+    const dh = Math.max(...top2.map(a=>a.dh_ft)), vis = Math.max(...top2.map(a=>a.vis_m));
+    return { req_ceil: dh+200, req_vis: vis+800,
+      note: `Two approaches (different runways): ${dh} + 200 ft, ${vis} + 800 m` };
+  }
+  if (appr.length === 1) {
+    const a = appr[0];
+    return { req_ceil: a.dh_ft+400, req_vis: a.vis_m+1600,
+      note: `One approach: ${a.dh_ft} + 400 ft, ${a.vis_m} + 1600 m` };
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HTML rendering helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function fmtCeil(v) { return v === null ? "CLR / SKC" : `${v} ft`; }
+function fmtVis(v)  { return v === null ? "—"         : `${v} m`;  }
+
+function renderCard(label, reqCeil, reqVis, actualCeil, actualVis, note, warnings, info) {
+  const ceilOk = actualCeil === null || actualCeil >= reqCeil;
+  const visOk  = actualVis  === null || actualVis  >= reqVis;
+  const ok     = ceilOk && visOk;
+
+  const noteHtml = note
+    ? `<div class="check-note">${note}</div>` : "";
+
+  const warnHtml = warnings && warnings.length
+    ? `<div class="check-warning">⚠&nbsp; ${warnings.join("<br>⚠&nbsp; ")}</div>` : "";
+
+  const infoHtml = info
+    ? `<div class="check-info">${info}</div>` : "";
+
+  return `
+    <div class="card ${ok ? "suitable" : "unsuitable"}">
+      <div class="card-header">
+        <span class="card-title">${label}</span>
+        <span class="badge">${ok ? "SUITABLE" : "NOT SUITABLE"}</span>
+      </div>
+      <div class="card-body">
+        ${noteHtml}
+        <div class="check-row">
+          <span class="lbl">Ceiling</span>
+          <span class="actual">${fmtCeil(actualCeil)}</span>
+          <span class="required">min ${reqCeil} ft</span>
+          <span class="sym ${ceilOk ? "ok" : "fail"}">${ceilOk ? "✓" : "✗"}</span>
+        </div>
+        <div class="check-row">
+          <span class="lbl">Vis</span>
+          <span class="actual">${fmtVis(actualVis)}</span>
+          <span class="required">min ${reqVis} m</span>
+          <span class="sym ${visOk ? "ok" : "fail"}">${visOk ? "✓" : "✗"}</span>
+        </div>
+        ${warnHtml}
+        ${infoHtml}
+      </div>
+    </div>`;
+}
+
+function renderWindSection(runways, periods) {
+  let rows = "", usable = {};
+  for (const [rwy, data] of Object.entries(runways)) {
+    const hdg        = data.heading;
+    const xwindLimit = data.xwind_kt ?? XWIND_LIMIT_DEFAULT_KT;
+    const { worst: tw, worstWind: twWind } = maxTailwind(periods, hdg);
+    const { worst: xw, worstWind: xwWind } = maxCrosswind(periods, hdg);
+
+    const reasons = [];
+    if (tw > TAILWIND_LIMIT_KT)
+      reasons.push(`tailwind ${Math.round(tw)} kt (${twWind}) &gt; ${TAILWIND_LIMIT_KT} kt`);
+    if (xw > xwindLimit)
+      reasons.push(`crosswind ${Math.round(xw)} kt (${xwWind}) &gt; ${xwindLimit} kt`);
+
+    if (reasons.length) {
+      rows += `
+        <div class="wind-row">
+          <span class="rwy-id">${rwy}</span>
+          <span class="rwy-status">${reasons.join(" / ")}</span>
+          <span class="rwy-badge excluded">EXCLUDED</span>
+        </div>`;
+    } else {
+      const twStr = tw > 0 ? `${Math.round(tw)} kt tailwind` : `${Math.round(Math.abs(tw))} kt headwind`;
+      const badge = tw > 5 ? "tailwind" : "ok";
+      rows += `
+        <div class="wind-row">
+          <span class="rwy-id">${rwy}</span>
+          <span class="rwy-status">${twStr}, ${Math.round(xw)} kt crosswind</span>
+          <span class="rwy-badge ${badge}">AVAILABLE</span>
+        </div>`;
+      usable[rwy] = data;
+    }
+  }
+
+  const html = `
+    <div class="wind-section">
+      <div class="section-header">Runway wind check</div>
+      ${rows}
+      <div style="padding:8px 16px;font-size:0.72rem;color:#484f58">The calculation uses worst case for each runway</div>
+    </div>`;
+  return { html, usable };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main check
+// ─────────────────────────────────────────────────────────────────────────────
+async function runCheck() {
+  const icao = document.getElementById("icaoInput").value.trim().toUpperCase();
+  const out  = document.getElementById("output");
+  const btn  = document.getElementById("checkBtn");
+  if (!icao) return;
+
+  const airport = AIRPORTS[icao];
+  if (!airport) {
+    out.innerHTML = `<div class="error-box">
+      <strong>${icao}</strong> is not in the database.<br>
+      Add it to the AIRPORTS object in the HTML file.
+    </div>`;
+    return;
+  }
+
+  btn.disabled = true;
+  out.innerHTML = `<div class="status"><span class="spinner"></span>Fetching TAF for ${icao}…</div>`;
+
+  try {
+    const taf = await fetchTaf(icao);
+    const periods = parseTafPeriods(taf);
+
+    const validFrom = new Date(taf.validTimeFrom * 1000).toUTCString().replace(/.*,\s*/,"").replace(/:00 GMT/,"Z");
+    const validTo   = new Date(taf.validTimeTo   * 1000).toUTCString().replace(/.*,\s*/,"").replace(/:00 GMT/,"Z");
+
+    const debugRows = periods.map(p =>
+      `${(p.change_type||"BASE").padEnd(16)} ceil=${String(p.ceil_ft??"-").padEnd(6)} vis=${String(p.vis_m??"-").padEnd(7)} wx=${p.wx||"-"}`
+    ).join("\n");
+
+    let html = `
+      <div class="taf-box">
+        <div><span class="taf-label">TAF</span>${taf.rawTAF}</div>
+        <div class="taf-valid">Valid ${validFrom} – ${validTo} · all checks use worst case across full TAF</div>
+        <pre style="margin-top:10px;font-size:0.7rem;color:#484f58">${debugRows}</pre>
+      </div>`;
+
+    // Wind check
+    let usableRunways = null;
+    if (airport.runways) {
+      const wind = renderWindSection(airport.runways, periods);
+      html += wind.html;
+      usableRunways = wind.usable;
+    }
+
+    // ETOPS alternate
+    if (airport.etops) {
+      const m = airport.etops;
+      const baseCeil = Math.max(m.auth_dh_ft, ETOPS_FLOOR_CEIL_FT);
+      const baseVis  = Math.max(m.auth_vis_m,  ETOPS_FLOOR_VIS_M);
+      const incCeil  = m.approach_type === "PA" ? 200 : 400;
+      const incVis   = m.approach_type === "PA" ? 800 : 1500;
+      const reqCeil  = baseCeil + incCeil;
+      const reqVis   = baseVis  + incVis;
+      // TEMPO/PROB disregarded only if they don't bring conditions below the authorized landing minima
+      const { ceil, vis, skipped } = worstConditions(periods, { etopsMinima: [baseCeil, baseVis] });
+      const warnings = skipped.map(s => `Period disregarded for ETOPS: ${s}`);
+      html += renderCard("ETOPS Alternate", reqCeil, reqVis, ceil, vis, null, warnings,
+        "Applicable period: earliest ETA to ETA + 1h");
+    }
+
+    // Destination
+    if (airport.destination) {
+      const m = airport.destination;
+      const { ceil, vis } = worstConditions(periods);
+      const destBelow = (ceil !== null && ceil < m.auth_dh_ft) || (vis !== null && vis < m.auth_vis_m);
+      const destWarnings = destBelow
+        ? ["Weather below destination minima — 2 alternates required"] : null;
+      html += renderCard("Destination", m.auth_dh_ft, m.auth_vis_m, ceil, vis, null, destWarnings,
+        "Applicable period: ±1h of ETA");
+    }
+
+    // Takeoff alternate
+    if (airport.takeoff) {
+      const m = airport.takeoff;
+      const reqCeil = Math.max(m.auth_dh_ft, TAKEOFF_ALT_FLOOR_CEIL_FT);
+      const reqVis  = Math.max(m.auth_vis_m,  TAKEOFF_ALT_FLOOR_VIS_M);
+      const { ceil, vis } = worstConditions(periods);
+      html += renderCard("Takeoff Alternate", reqCeil, reqVis, ceil, vis,
+        null, null, "Applicable period: ±1h of ETA");
+    }
+
+    // Destination alternate
+    if (usableRunways !== null) {
+      if (Object.keys(usableRunways).length === 0) {
+        html += `
+          <div class="card unsuitable">
+            <div class="card-header">
+              <span class="card-title">Destination Alternate</span>
+              <span class="badge">NOT SUITABLE</span>
+            </div>
+            <div class="card-body">
+              <div class="check-row" style="color:#8b949e">
+                All runways excluded by wind limits
+              </div>
+            </div>
+          </div>`;
+      } else {
+        const { ceil, vis, skipped } = worstConditions(periods, { excludeTransientTempo: true });
+        const region = airport.region ?? "PANS-OPS";
+        const row    = region === "US" ? bestUsRow(usableRunways) : bestPansOpsRow(usableRunways);
+        const table  = region === "US" ? "FAA OPS Specs" : "PANS-OPS";
+        if (row) {
+          const warnings = skipped.map(s => `TEMPO transient period disregarded: ${s}`);
+          html += renderCard(`Destination Alternate (${table})`,
+            row.req_ceil, row.req_vis, ceil, vis, null, warnings,
+            `${row.note}<br>Applicable period: ±1h of ETA`);
+        }
+      }
+    }
+
+    out.innerHTML = html;
+
+  } catch (e) {
+    out.innerHTML = `<div class="error-box">Could not fetch TAF for <strong>${icao}</strong>: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("icaoInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") runCheck();
+});
+</script>
+</body>
+</html>
